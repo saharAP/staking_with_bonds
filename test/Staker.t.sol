@@ -206,6 +206,48 @@ contract StakerTest is Test {
         staker.st1wToken().transfer(user2, transfer_amount);
         assertEq( staker.st1wToken().balanceOf(user2), transfer_amount);
     }
+    function testFailWhenDepositZeroAmount() public{
+        vm.startPrank(user1);
+        uint256 depositAmount = 0;
+        stakingToken1.approve(address(staker), 1000 * 10**18);
+        staker.deposit(address(stakingToken1), depositAmount, staker.ONE_WEEK_NOTICE());
+        vm.stopPrank();
+        
+    }
+    function testFailMultipleActiveWithdrawRequestForSingleToken() public{
+        vm.startPrank(user1);
+        uint256 deposit_amount= 100 * 10**18;
+        stakingToken1.approve(address(staker), deposit_amount);
+        staker.deposit(address(stakingToken1), deposit_amount, staker.ONE_WEEK_NOTICE());
+        
+        vm.stopPrank();
+        
+        vm.startPrank(user1);
+        uint256 withdraw_amount_1= 20 * 10**18;
+        uint256 withdraw_amount_2= 40 * 10**18;
+        staker.requestWithdraw(address(stakingToken1), withdraw_amount_1, staker.ONE_WEEK_NOTICE());
+        staker.requestWithdraw(address(stakingToken1), withdraw_amount_2, staker.ONE_WEEK_NOTICE());
+        vm.stopPrank();       
+    }
+    function testFailClaimBeforeNoticePeriod() public{
+        vm.startPrank(user1);
+        stakingToken1.approve(address(staker), 1000 * 10**18);
+        staker.deposit(address(stakingToken1), 1000 * 10**18, staker.FOUR_WEEK_NOTICE());
+        
+         // Fast forward time
+        vm.warp(block.timestamp + 100 days);
+
+        vm.stopPrank();
+        
+        vm.startPrank(user1);
+        uint256 withdraw_amount= 500 * 10**18;
+        staker.requestWithdraw(address(stakingToken1),withdraw_amount, staker.FOUR_WEEK_NOTICE());
+        
+        staker.claim(address(stakingToken1));
+        vm.stopPrank();
+        
+    }
+
     function calculateExpectedYield(uint256 amount, uint256 duration) internal view returns (uint256) {
         // This should match the yield calculation in your Staker contract
         uint256 annualRate = staker.INTEREST_RATE();
