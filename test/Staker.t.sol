@@ -196,8 +196,17 @@ contract StakerTest is Test {
         // Assert that the actual yield matches the expected yield
         assertEq(actualYield, expectedYield, "Yield computation mismatch");
     }
-
-        function calculateExpectedYield(uint256 amount, uint256 duration) internal view returns (uint256) {
+    function testTransferStakeTokens() public{
+        uint256 depositAmount = 1000 * 10**18;
+        // User deposits tokens
+        vm.startPrank(user1);
+        stakingToken1.approve(address(staker), depositAmount);
+        staker.deposit(address(stakingToken1), depositAmount, staker.ONE_WEEK_NOTICE());
+        uint256 transfer_amount= 100 * 10**18;
+        staker.st1wToken().transfer(user2, transfer_amount);
+        assertEq( staker.st1wToken().balanceOf(user2), transfer_amount);
+    }
+    function calculateExpectedYield(uint256 amount, uint256 duration) internal view returns (uint256) {
         // This should match the yield calculation in your Staker contract
         uint256 annualRate = staker.INTEREST_RATE();
         uint256 yearInSeconds = 365 days;

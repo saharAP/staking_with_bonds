@@ -14,6 +14,7 @@ interface IWETH{
 
 contract StakerForkTest is Test {
     address public user1;
+    address public user2;
     Staker public staker;
     address public owner;
 
@@ -25,6 +26,7 @@ contract StakerForkTest is Test {
     address public constant USDC_ADDRESS = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     function setUp() public {
         user1 = 0x55FE002aefF02F77364de339a1292923A15844B8; //Whale address
+        user2= 0x5939F00372B62877D9F46f5AB9881402D8006377;
         staker = new Staker();
         owner = address(this);
         // Set up WETH
@@ -166,6 +168,7 @@ contract StakerForkTest is Test {
         
         assertFalse(staker.isTokenWhitelisted(DAI_ADDRESS));
     }
+    
     function testYieldComputation() public {
         uint256 depositAmount = 1000 * 10**18;
         uint256 stakingDuration = 30 days;
@@ -189,7 +192,15 @@ contract StakerForkTest is Test {
         // Assert that the actual yield matches the expected yield
         assertEq(actualYield, expectedYield, "Yield computation mismatch");
     }
-
+    function testTransferStakeTokens() public{
+        uint256 depositAmount = 1000 * 10**18;
+        // User deposits tokens
+        vm.startPrank(user1);
+        staker.deposit(WETH_ADDRESS, depositAmount, staker.ONE_WEEK_NOTICE());
+        uint256 transfer_amount= 100 * 10**18;
+        staker.st1wToken().transfer(user2, transfer_amount);
+        assertEq( staker.st1wToken().balanceOf(user2), transfer_amount);
+    }
     function calculateExpectedYield(uint256 amount, uint256 duration) internal view returns (uint256) {
         // This should match the yield calculation in your Staker contract
         uint256 annualRate = staker.INTEREST_RATE();
