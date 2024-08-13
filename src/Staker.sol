@@ -67,6 +67,40 @@ contract Staker is Pausable, Ownable {
 
         emit Staked(msg.sender, stakingToken, amount, noticePeriod);
     }
+    function requestWithdraw(address stakingToken, uint256 amount, uint256 noticePeriod) external {
+        Stake storage stake= users[msg.sender][stakingToken];
+        require(amount > 0, "Amount must be greater than 0"); 
+        require(stake.amount >= amount , "Insufficient balance");
+        require(!stake.requestedWithdrawal, "Withdrawal already requested");
+
+        stake.requestedWithdrawal=true;
+        stake.requestedWithdrawalTime=block.timestamp;
+
+        if (noticePeriod == ONE_WEEK_NOTICE) {
+            st1wToken.burn(msg.sender, amount);
+        } else if (noticePeriod == FOUR_WEEK_NOTICE) {
+            st4wToken.burn(msg.sender, amount);
+        }
+        uint256 yield=calculateYield(stake.amount, stake.startTime);
+        stake.noticePeriod= noticePeriod;
+        stake.startTime=block.timestamp;
+        stake.amount -= amount;
+        stake.yield+= yield;
+        stake.WithdrawalAmount= amount;
+
+        emit WithdrawalRequested(msg.sender, amount, noticePeriod);
+    }
+    function claim(address stakingToken) external whenNotPaused {
+        Stake storage stake= users[msg.sender][stakingToken];
+        require(stake.requestedWithdrawal, "No withdrawal requested");
+        require(block.timestamp >= stake.requestedWithdrawalTime+stake.noticePeriod, "Notice period not yet over");
+
+        IERC20(stakingToken).safeTransfer(msg.sender, stake.WithdrawalAmount + stake.yield);
+        
+        stake.WithdrawalAmount  = 0;
+        stake.yield = 0;
+        stake.requestedWithdrawal = false;
+    }
 //******** Owner functions ***********//
      function adminYieldDeposit(address stakingToken, uint256 amount) external onlyOwner {
         require(whitelist[stakingToken], "Token is not whitelisted");
@@ -92,6 +126,29 @@ contract Staker is Pausable, Ownable {
         uint256 stakingDuration = block.timestamp - startTime;
         uint256 yield = (amount * INTEREST_RATE * stakingDuration) / (100 * 365 days);
         return yield;
+    }
+    function stakeDetails(address stakingToken, address account) external view returns(
+            uint256 amount,
+            uint256 startTime,
+            uint256 noticePeriod,
+            uint256 yield,
+            uint256 withdrawalAmount,
+            uint256 requestedWithdrawalTime,
+            bool requestedWithdrawal
+        ){
+        Stake memory stake=users[account][stakingToken];
+        return(
+            stake.amount,
+            stake.startTime,
+            stake.noticePeriod,
+            stake.yield,
+            stake.WithdrawalAmount,
+            stake.requestedWithdrawalTime,
+            stake.requestedWithdrawal
+        );
+    }
+    function balanceOf(address stakingToken, address account) external view returns (uint256) {
+        return users[account][stakingToken].amount;
     }
     function isTokenWhitelisted(address token) public view returns (bool) {
         return whitelist[token];
