@@ -30,6 +30,70 @@ contract Staker is Pausable, Ownable {
         uint256 requestedWithdrawalTime;
         bool requestedWithdrawal;
     }
+    // Mapping to keep track of stakes for each user
+    mapping(address => mapping(address => Stake)) public users;
 
+    event Staked(address indexed user,address stakingToken, uint256 amount, uint256 noticePeriod);
+    event TokenWhitelistStatusUpdated(address indexed token, bool updated);
+    event WithdrawalRequested(address indexed user, uint256 amount, uint256 noticePeriod);
+    event YieldDeposited(address indexed token, uint256 amount);
+    constructor()Ownable(msg.sender){
+     st1wToken = new St1wToken();
+     st4wToken = new St4wToken();
+    }
+    //******** Public functions ***********//
+    function deposit(address stakingToken,uint256 amount, uint256 noticePeriod) external whenNotPaused {
+        require(amount > 0, "Amount must be greater than 0");
+        require(whitelist[stakingToken], "Token is not whitelisted");
+       
+           
+        Stake storage stake= users[msg.sender][stakingToken];
+        uint256 stake_amount= stake.amount;
+        if(stake_amount > 0){
+            stake.yield+= calculateYield(stake_amount, stake.startTime);
+        }
 
+        stake.amount+= amount;
+        stake.startTime= block.timestamp;
+
+        IERC20 token= IERC20(stakingToken);
+        token.safeTransferFrom(msg.sender, address(this), amount);
+        if (noticePeriod == ONE_WEEK_NOTICE) {
+            st1wToken.mint(msg.sender, amount);
+        } else if (noticePeriod == FOUR_WEEK_NOTICE) {
+            st4wToken.mint(msg.sender, amount);
+        }
+        else{revert("Invalid notice period");}
+
+        emit Staked(msg.sender, stakingToken, amount, noticePeriod);
+    }
+//******** Owner functions ***********//
+     function adminYieldDeposit(address stakingToken, uint256 amount) external onlyOwner {
+        require(whitelist[stakingToken], "Token is not whitelisted");
+        IERC20(stakingToken).safeTransferFrom(msg.sender, address(this), amount);
+        
+        emit YieldDeposited(stakingToken, amount);
+    }
+    function updateTokenWhitelistStatus(address token, bool status) public onlyOwner {
+        whitelist[token] = status;
+
+        emit TokenWhitelistStatusUpdated(token, status);
+    }
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+   //******** View functions ***********//
+
+    function calculateYield(uint256 amount, uint256 startTime) internal view returns (uint256) {
+        uint256 stakingDuration = block.timestamp - startTime;
+        uint256 yield = (amount * INTEREST_RATE * stakingDuration) / (100 * 365 days);
+        return yield;
+    }
+    function isTokenWhitelisted(address token) public view returns (bool) {
+        return whitelist[token];
+    }
 }
