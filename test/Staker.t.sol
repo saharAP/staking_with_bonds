@@ -78,15 +78,7 @@ contract StakerTest is Test {
         uint256 remaining= deposit_amount-withdraw_amount;
         assertEq(staker.balanceOf(address(stakingToken1), user1),remaining);
        
-        // (
-        //     uint256 amount,
-        //     uint256 startTime,
-        //     uint256 noticePeriod,
-        //     uint256 yield,
-        //     uint256 withdrawalAmount,
-        //     uint256 requestedWithdrawalTime,
-        //     bool requestedWithdrawal
-        // ) = staker.stakeDetails(address(stakingToken1), user1);
+ 
         (,,,,uint256 withdrawalAmount,,bool requestedWithdrawal) = staker.stakeDetails(address(stakingToken1), user1);
         assertTrue(requestedWithdrawal, "requestedWithdrawal should be true after requesting withdrawal");
         assertEq(withdrawalAmount, withdraw_amount, "Withdrawal amount should match requested amount");
@@ -204,29 +196,7 @@ contract StakerTest is Test {
         // Assert that the actual yield matches the expected yield
         assertEq(actualYield, expectedYield, "Yield computation mismatch");
     }
-    // function testRevertWhenDepositingZero() public {
-    //     vm.startPrank(user1);
-    //     stakingToken1.approve(address(staker), 1000 * 10**18);
-        
-    //     vm.expectRevert(bytes("Amount must be greater than 0"));
-    //     // vm.expectRevert();
-    //     uint256 amount=0;
-    //     staker.deposit(address(stakingToken1), amount, staker.ONE_WEEK_NOTICE());
 
-    //     vm.stopPrank();
-    // }
-
-    // function testRevertWhenDepositingNonWhitelistedToken() public {
-    //     MockERC20 nonWhitelistedToken = new MockERC20("Non Whitelisted", "NWT");
-        
-    //     vm.startPrank(user1);
-    //     nonWhitelistedToken.approve(address(staker), 1000 * 10**18);
-        
-    //     vm.expectRevert("Token is not whitelisted");
-    //     staker.deposit(address(nonWhitelistedToken), 1000 * 10**18, staker.ONE_WEEK_NOTICE());
-        
-    //     vm.stopPrank();
-    // }
         function calculateExpectedYield(uint256 amount, uint256 duration) internal view returns (uint256) {
         // This should match the yield calculation in your Staker contract
         uint256 annualRate = staker.INTEREST_RATE();
