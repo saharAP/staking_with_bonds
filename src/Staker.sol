@@ -35,8 +35,9 @@ contract Staker is Pausable, Ownable {
 
     event Staked(address indexed user,address stakingToken, uint256 amount, uint256 noticePeriod);
     event TokenWhitelistStatusUpdated(address indexed token, bool updated);
-    event WithdrawalRequested(address indexed user, uint256 amount, uint256 noticePeriod);
+    event WithdrawalRequested(address indexed user,  address token, uint256 amount, uint256 noticePeriod);
     event YieldDeposited(address indexed token, uint256 amount);
+    event claimed(address indexed user, address token, uint256 amount);
     constructor()Ownable(msg.sender){
      st1wToken = new St1wToken();
      st4wToken = new St4wToken();
@@ -67,7 +68,7 @@ contract Staker is Pausable, Ownable {
 
         emit Staked(msg.sender, stakingToken, amount, noticePeriod);
     }
-    function requestWithdraw(address stakingToken, uint256 amount, uint256 noticePeriod) external {
+    function requestWithdraw(address stakingToken, uint256 amount, uint256 noticePeriod) external whenNotPaused{
         Stake storage stake= users[msg.sender][stakingToken];
         require(amount > 0, "Amount must be greater than 0"); 
         require(stake.amount >= amount , "Insufficient balance");
@@ -88,18 +89,19 @@ contract Staker is Pausable, Ownable {
         stake.yield+= yield;
         stake.WithdrawalAmount= amount;
 
-        emit WithdrawalRequested(msg.sender, amount, noticePeriod);
+        emit WithdrawalRequested(msg.sender, stakingToken, amount, noticePeriod);
     }
     function claim(address stakingToken) external whenNotPaused {
         Stake storage stake= users[msg.sender][stakingToken];
         require(stake.requestedWithdrawal, "No withdrawal requested");
         require(block.timestamp >= stake.requestedWithdrawalTime+stake.noticePeriod, "Notice period not yet over");
-
-        IERC20(stakingToken).safeTransfer(msg.sender, stake.WithdrawalAmount + stake.yield);
+        uint256 claim_amount= stake.WithdrawalAmount + stake.yield;
+        IERC20(stakingToken).safeTransfer(msg.sender, claim_amount);
         
         stake.WithdrawalAmount  = 0;
         stake.yield = 0;
         stake.requestedWithdrawal = false;
+        emit claimed(msg.sender, stakingToken, claim_amount);
     }
 //******** Owner functions ***********//
      function adminYieldDeposit(address stakingToken, uint256 amount) external onlyOwner {
