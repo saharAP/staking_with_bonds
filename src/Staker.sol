@@ -82,6 +82,8 @@ contract Staker is Pausable, Ownable {
         } else if (noticePeriod == FOUR_WEEK_NOTICE) {
             st4wToken.burn(msg.sender, amount);
         }
+        else{revert("Invalid notice period");}
+        
         uint256 yield=calculateYield(stake.amount, stake.startTime);
         stake.noticePeriod= noticePeriod;
         stake.startTime=block.timestamp;
